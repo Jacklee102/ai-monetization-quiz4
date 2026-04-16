@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>주식 수익화 단계 진단기</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap');
+
+    :root {
+      --bg: #060910;
+      --surface: #0d1117;
+      --surface2: #161c26;
+      --border: rgba(0, 200, 120, 0.18);
+      --accent: #00c878;
+      --accent2: #00e5ff;
+      --accent3: #f7c948;
+      --text: #e8f5f0;
+      --muted: #6b8a7a;
+      --danger: #ff4d6d;
+      --glow: 0 0 40px rgba(0, 200, 120, 0.18);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 80px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 45% at 15% 10%, rgba(0,200,120,0.10) 0%, transparent 60%),
+        radial-gradient(ellipse 55% 40% at 85% 85%, rgba(0,229,255,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 50% 50%, rgba(247,201,72,0.04) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* 배경 캔들 패턴 */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 59px,
+          rgba(0,200,120,0.03) 59px,
+          rgba(0,200,120,0.03) 60px
+        );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 760px;
+    }
+
+    /* ── TICKER TAPE ── */
+    .ticker-wrap {
+      width: 100%;
+      overflow: hidden;
+      background: rgba(0,200,120,0.06);
+      border: 1px solid rgba(0,200,120,0.15);
+      border-radius: 8px;
+      padding: 8px 0;
+      margin-bottom: 36px;
+    }
+    .ticker-inner {
+      display: flex;
+      gap: 48px;
+      animation: ticker 20s linear infinite;
+      white-space: nowrap;
+    }
+    .ticker-item {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .ticker-up { color: var(--accent); }
+    .ticker-down { color: var(--danger); }
+    @keyframes ticker {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ── HEADER ── */
+    .header { text-align: center; margin-bottom: 44px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,200,120,0.12);
+      border: 1px solid rgba(0,200,120,0.3);
+      border-radius: 100px;
+      padding: 6px 18px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+    h1 {
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -0.035em;
+      background: linear-gradient(135deg, #fff 0%, #a8ffdc 45%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 14px;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .subtitle b { color: var(--accent); font-weight: 700; }
+
+    /* ── MINI CHART DECO ── */
+    .chart-deco {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      justify-content: center;
+      height: 32px;
+      margin: 18px 0 0;
+      opacity: 0.5;
+    }
+    .bar {
+      width: 6px;
+      border-radius: 3px 3px 0 0;
+      background: var(--accent);
+      animation: barAnim 2s ease-in-out infinite alternate;
+    }
+    .bar:nth-child(2) { animation-delay: 0.15s; }
+    .bar:nth-child(3) { animation-delay: 0.3s; }
+    .bar:nth-child(4) { animation-delay: 0.1s; }
+    .bar:nth-child(5) { animation-delay: 0.4s; }
+    .bar:nth-child(6) { animation-delay: 0.25s; }
+    .bar:nth-child(7) { animation-delay: 0.5s; }
+    .bar:nth-child(8) { animation-delay: 0.05s; }
+    @keyframes barAnim {
+      from { transform: scaleY(0.4); }
+      to   { transform: scaleY(1); }
+    }
+
+    /* ── PROGRESS ── */
+    .progress-wrap { margin-bottom: 32px; }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .progress-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+    .progress-step { font-size: 13px; color: var(--accent); font-weight: 800; }
+    .progress-bar-bg {
+      height: 4px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      transition: width 0.55s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: 0 0 10px rgba(0,200,120,0.5);
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 40px 44px;
+      box-shadow: var(--glow), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    @media (max-width: 540px) { .card { padding: 26px 20px; } }
+
+    /* ── QUESTION ── */
+    .q-number {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 16px;
+    }
+    .q-pulse {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: blink 1.5s infinite;
+    }
+    .q-text {
+      font-size: clamp(18px, 3vw, 24px);
+      font-weight: 900;
+      line-height: 1.38;
+      margin-bottom: 10px;
+      letter-spacing: -0.025em;
+    }
+    .q-desc { font-size: 13px; color: var(--muted); margin-bottom: 30px; line-height: 1.65; }
+
+    /* ── OPTIONS ── */
+    .options { display: flex; flex-direction: column; gap: 11px; }
+    .option {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 15px 18px;
+      background: var(--surface2);
+      border: 1.5px solid transparent;
+      border-radius: 13px;
+      cursor: pointer;
+      transition: all 0.22s ease;
+      user-select: none;
+    }
+    .option:hover {
+      border-color: rgba(0,200,120,0.35);
+      background: rgba(0,200,120,0.07);
+      transform: translateX(5px);
+    }
+    .option.selected {
+      border-color: var(--accent);
+      background: rgba(0,200,120,0.12);
+      box-shadow: 0 0 20px rgba(0,200,120,0.15);
+    }
+    .option-radio {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 2px solid var(--muted);
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .option.selected .option-radio {
+      border-color: var(--accent);
+      background: var(--accent);
+      box-shadow: 0 0 10px rgba(0,200,120,0.5);
+    }
+    .option.selected .option-radio::after {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #060910;
+    }
+    .option-label { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
+    .option-detail { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ── BUTTONS ── */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 30px;
+      justify-content: flex-end;
+    }
+    .btn {
+      padding: 13px 28px;
+      border-radius: 11px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.22s;
+      letter-spacing: -0.01em;
+    }
+    .btn-ghost {
+      background: transparent;
+      border: 1.5px solid rgba(0,200,120,0.2);
+      color: var(--muted);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #060910;
+      box-shadow: 0 4px 20px rgba(0,200,120,0.35);
+      font-weight: 900;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,200,120,0.45); }
+    .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── RESULT ── */
+    .result-stage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 18px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+      border: 1.5px solid;
+    }
+    .result-emoji { font-size: 58px; margin-bottom: 14px; line-height: 1; display: block; }
+    .result-title {
+      font-size: clamp(20px, 4vw, 32px);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+    .result-sub { font-size: 14px; color: var(--muted); margin-bottom: 26px; line-height: 1.7; }
+
+    /* PNL BAR */
+    .pnl-section {
+      background: var(--surface2);
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 22px;
+      border: 1px solid var(--border);
+    }
+    .pnl-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .pnl-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+    .pnl-score { font-size: 22px; font-weight: 900; }
+    .score-track {
+      height: 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .score-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 1.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .pnl-bottom {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    /* STAGE LADDER */
+    .stage-ladder {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .ladder-step {
+      flex: 1;
+      min-width: 56px;
+      text-align: center;
+      padding: 10px 4px 8px;
+      border-radius: 10px;
+      background: var(--surface2);
+      border: 1.5px solid transparent;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+      transition: all 0.3s;
+    }
+    .ladder-step.active {
+      border-color: var(--accent);
+      color: var(--text);
+      background: rgba(0,200,120,0.14);
+      box-shadow: 0 0 14px rgba(0,200,120,0.2);
+    }
+    .ladder-icon { font-size: 17px; margin-bottom: 5px; display: block; }
+
+    /* INSIGHTS */
+    .insights {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 11px;
+      margin-bottom: 22px;
+    }
+    @media (max-width: 500px) { .insights { grid-template-columns: 1fr; } }
+    .insight-box {
+      background: var(--surface2);
+      border-radius: 13px;
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+    .insight-icon { font-size: 18px; margin-bottom: 7px; }
+    .insight-title { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+    .insight-text { font-size: 13px; line-height: 1.6; color: var(--text); font-weight: 500; }
+
+    /* SHARE TAGS */
+    .share-tag { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 22px; }
+    .tag {
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(0,200,120,0.09);
+      border: 1px solid rgba(0,200,120,0.25);
+      color: var(--accent);
+    }
+
+    /* ACTION PLAN */
+    .action-list {
+      background: var(--surface2);
+      border-radius: 15px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      margin-bottom: 22px;
+    }
+    .action-title {
+      font-size: 13px;
+      font-weight: 900;
+      margin-bottom: 16px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .action-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 11px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .action-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .action-num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 900;
+      flex-shrink: 0;
+      color: #060910;
+    }
+    .action-text { font-size: 13px; line-height: 1.65; color: var(--text); font-weight: 500; }
+    .action-text b { color: var(--accent); }
+
+    /* WARNING BOX */
+    .risk-box {
+      background: rgba(255,77,109,0.07);
+      border: 1px solid rgba(255,77,109,0.25);
+      border-radius: 13px;
+      padding: 16px 18px;
+      margin-bottom: 22px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .risk-icon { font-size: 18px; flex-shrink: 0; }
+    .risk-text { font-size: 12px; color: rgba(255,150,165,0.9); line-height: 1.6; font-weight: 500; }
+
+    /* RESTART */
+    .restart-btn {
+      width: 100%;
+      padding: 15px;
+      background: transparent;
+      border: 1.5px solid rgba(0,200,120,0.2);
+      border-radius: 13px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.22s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .restart-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,200,120,0.05);
+    }
+
+    /* SCREEN ANIMATION */
+    .quiz-screen, .result-screen {
+      animation: fadeUp 0.42s cubic-bezier(0.4,0,0.2,1);
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- TICKER TAPE -->
+  <div class="ticker-wrap">
+    <div class="ticker-inner">
+      <span class="ticker-item ticker-up">▲ SAMSUNG 85,400 +2.34%</span>
+      <span class="ticker-item ticker-down">▼ KAKAO 48,200 -1.20%</span>
+      <span class="ticker-item ticker-up">▲ SK하이닉스 198,500 +3.11%</span>
+      <span class="ticker-item ticker-down">▼ NAVER 213,000 -0.47%</span>
+      <span class="ticker-item ticker-up">▲ POSCO 421,000 +1.88%</span>
+      <span class="ticker-item ticker-up">▲ APPLE 189.74 +0.92%</span>
+      <span class="ticker-item ticker-down">▼ TESLA 248.50 -2.14%</span>
+      <span class="ticker-item ticker-up">▲ NVIDIA 875.40 +4.20%</span>
+      <!-- 반복 (무한 스크롤용) -->
+      <span class="ticker-item ticker-up">▲ SAMSUNG 85,400 +2.34%</span>
+      <span class="ticker-item ticker-down">▼ KAKAO 48,200 -1.20%</span>
+      <span class="ticker-item ticker-up">▲ SK하이닉스 198,500 +3.11%</span>
+      <span class="ticker-item ticker-down">▼ NAVER 213,000 -0.47%</span>
+      <span class="ticker-item ticker-up">▲ POSCO 421,000 +1.88%</span>
+      <span class="ticker-item ticker-up">▲ APPLE 189.74 +0.92%</span>
+      <span class="ticker-item ticker-down">▼ TESLA 248.50 -2.14%</span>
+      <span class="ticker-item ticker-up">▲ NVIDIA 875.40 +4.20%</span>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="badge"><div class="badge-dot"></div>Stock Investment Diagnostics</div>
+    <h1>주식 수익화<br/>단계 진단 계산기</h1>
+    <p class="subtitle">
+      <b>5개 질문</b>에 솔직하게 답하면<br/>
+      나의 투자 레벨과 지금 당장 써먹을 전략을 알려드립니다.
+    </p>
+    <div class="chart-deco">
+      <div class="bar" style="height:10px"></div>
+      <div class="bar" style="height:18px"></div>
+      <div class="bar" style="height:13px"></div>
+      <div class="bar" style="height:26px"></div>
+      <div class="bar" style="height:16px"></div>
+      <div class="bar" style="height:30px"></div>
+      <div class="bar" style="height:22px"></div>
+      <div class="bar" style="height:32px"></div>
+    </div>
+  </div>
+
+  <!-- QUIZ CARD -->
+  <div class="card quiz-screen" id="quizCard">
+    <div class="progress-wrap">
+      <div class="progress-meta">
+        <span class="progress-label" id="progLabel">질문 1 / 5</span>
+        <span class="progress-step" id="progStep">20%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressBar" style="width:20%"></div>
+      </div>
+    </div>
+    <div id="questionArea"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="prevBtn" onclick="prevQ()" style="display:none">← 이전</button>
+      <button class="btn btn-primary" id="nextBtn" onclick="nextQ()" disabled>다음 →</button>
+    </div>
+  </div>
+
+  <!-- RESULT CARD -->
+  <div class="card result-screen" id="resultCard" style="display:none"></div>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   QUESTIONS
+══════════════════════════════════════ */
+const questions = [
+  {
+    q: "주식 투자 경력이 얼마나 되나요?",
+    desc: "계좌 개설 후 실제 매매를 시작한 시점을 기준으로 솔직하게 답해주세요.",
+    options: [
+      { label: "아직 시작도 못 했다", detail: "주식 계좌도 없고 투자 경험 제로.", score: 1 },
+      { label: "1년 미만 — 이제 막 시작한 초보", detail: "계좌는 있고, 몇 번 사고팔아봤다.", score: 2 },
+      { label: "1~3년 — 어느 정도 경험이 쌓였다", detail: "상승장·하락장 모두 경험해봤다.", score: 3 },
+      { label: "3~7년 — 나름 베테랑이라 생각한다", detail: "다양한 종목과 전략을 실험해봤다.", score: 4 },
+      { label: "7년 이상 — 시장 사이클을 여러 번 겪었다", detail: "금융위기급 폭락도 버텨본 경험이 있다.", score: 5 },
+    ]
+  },
+  {
+    q: "현재 투자 수익률은 어느 수준인가요?",
+    desc: "최근 1년 기준, 감정을 배제하고 실제 수익률로 답해주세요. (원금 대비 %)",
+    options: [
+      { label: "손실 중 — 원금이 줄었다", detail: "지금 당장 계좌를 열기가 무섭다.", score: 1 },
+      { label: "원금 유지 수준 (±5% 이내)", detail: "잃지는 않았지만 딱히 번 것도 없다.", score: 2 },
+      { label: "시장 평균 수준 (코스피·S&P 500 추종)", detail: "인덱스 펀드와 비슷한 수익률을 냈다.", score: 3 },
+      { label: "시장 초과 수익 (+15~30%)", detail: "종목 선정 또는 타이밍으로 시장을 이겼다.", score: 4 },
+      { label: "고수익 달성 (+30% 이상)", detail: "올해 포트폴리오가 크게 성장했다.", score: 5 },
+    ]
+  },
+  {
+    q: "투자 종목을 고를 때 어떤 기준을 사용하나요?",
+    desc: "가장 자주 사용하는 의사결정 방식을 솔직하게 골라주세요.",
+    options: [
+      { label: "뉴스·커뮤니티·지인 추천 따라가기", detail: "카더라 통신, 리딩방, SNS 종목 추천 의존.", score: 1 },
+      { label: "차트만 보는 기술적 분석 초보 수준", detail: "이동평균선, MACD 정도는 볼 줄 안다.", score: 2 },
+      { label: "기업 재무제표 + 차트 병행 분석", detail: "PER, PBR, 영업이익 등 기본 지표 체크.", score: 3 },
+      { label: "독자적 투자 기준(스크리너·시스템)을 갖고 있다", detail: "나만의 종목 선별 기준이 명문화되어 있다.", score: 4 },
+      { label: "퀀트·알고리즘·심층 밸류에이션 분석", detail: "DCF, 섹터 분석, 포트폴리오 리밸런싱 체계 운용.", score: 5 },
+    ]
+  },
+  {
+    q: "투자 원금(총 투입 자본) 규모는 어느 정도인가요?",
+    desc: "현재 주식 계좌에 투자된 총 금액 기준입니다.",
+    options: [
+      { label: "100만 원 미만", detail: "용돈 수준으로 소액 테스트 중이다.", score: 1 },
+      { label: "100만~500만 원", detail: "본격적으로 시작하기 위한 시드를 모으는 중.", score: 2 },
+      { label: "500만~2,000만 원", detail: "수익이 생활에 영향을 줄 만한 규모.", score: 3 },
+      { label: "2,000만~1억 원", detail: "포트폴리오 구성이 의미 있는 자본 수준.", score: 4 },
+      { label: "1억 원 이상", detail: "자산 관리·세금까지 신경 써야 하는 수준.", score: 5 },
+    ]
+  },
+  {
+    q: "리스크 관리와 손절 원칙이 있나요?",
+    desc: "감정 매매 vs 시스템 매매의 기준으로 솔직하게 체크해주세요.",
+    options: [
+      { label: "없음 — 그냥 오르면 팔고 내리면 존버한다", detail: "손절은 패배라고 느낀다.", score: 1 },
+      { label: "막연한 기준은 있지만 잘 지키지 못한다", detail: "'10% 손실이면 팔겠다'고 생각은 하는데 실천 안 됨.", score: 2 },
+      { label: "손절 기준이 있고 대체로 지킨다", detail: "규칙을 세우고 70~80%는 지킨다.", score: 3 },
+      { label: "리스크 관리 시스템이 명확하다 (포지션 사이징 포함)", detail: "종목별 비중·손절선·익절선이 규칙화되어 있다.", score: 4 },
+      { label: "포트폴리오 레벨의 리스크 관리 (헤지·분산 포함)", detail: "ETF 헤지, 섹터 분산, 상관관계 관리까지 한다.", score: 5 },
+    ]
+  }
+];
+
+/* ══════════════════════════════════════
+   STAGE DEFINITIONS
+══════════════════════════════════════ */
+const stages = [
+  {
+    min: 5, max: 8,
+    id: "STAGE 0",
+    emoji: "🌱",
+    title: "입문자 — 주식 계좌는 있지만 전략이 없다",
+    sub: "투자를 시작했거나 시작을 앞둔 단계입니다. 지금 나쁜 습관을 먼저 막는 것이 수익보다 중요합니다.",
+    color: "#8880aa",
+    gradient: "linear-gradient(135deg, #8880aa, #6655bb)",
+    tags: ["투자 초보", "전략 부재", "감정 매매 위험"],
+    actions: [
+      { text: "<b>리딩방·종목 추천 채널을 즉시 탈퇴</b>하세요. 추천 받아서 돈 번 사람보다 잃은 사람이 압도적으로 많습니다." },
+      { text: "전체 자산의 <b>5% 이하로만 개별 주식</b>을 사세요. 나머지는 인덱스 ETF(SPY, KODEX200)로 시작. 공부가 먼저입니다." },
+      { text: "<b>투자 일지를 작성</b>하세요. '왜 샀는지, 언제 팔 건지'를 매매 전에 적는 것만으로 감정 매매가 50% 줄어듭니다." },
+    ],
+    insight1: { icon: "⚠️", title: "지금 가장 큰 위험", text: "정보 없이 '느낌'으로 매매하는 것. 초보의 수익은 운이고, 손실은 실력입니다." },
+    insight2: { icon: "📚", title: "우선순위", text: "수익보다 공부가 먼저입니다. 워런 버핏의 연평균 수익률은 20%. 한 방을 노리면 안 됩니다." },
+    insight3: { icon: "🎯", title: "단기 목표", text: "6개월 안에 재무제표 1장을 읽을 수 있는 수준 도달. PER·PBR·ROE의 의미를 이해하기." },
+    insight4: { icon: "⏱", title: "예상 성장 기간", text: "꾸준히 공부하면 1~2년 내 Stage 1(자기 기준 보유) 진입 가능합니다." },
+    risk: "⚡ 주의: 레버리지·신용매수·선물·옵션은 절대 금지 구간입니다. 원금 손실을 넘어 빚이 생깁니다.",
+  },
+  {
+    min: 9, max: 13,
+    id: "STAGE 1",
+    emoji: "📊",
+    title: "학습자 — 원칙은 있지만 수익이 불안정하다",
+    sub: "공부는 하고 있지만 아직 일관된 수익이 나지 않는 단계입니다. 전략을 명문화하는 것이 핵심 과제입니다.",
+    color: "#f7c948",
+    gradient: "linear-gradient(135deg, #f7c948, #ff9500)",
+    tags: ["기초 지식 보유", "수익 불규칙", "원칙 일부 존재"],
+    actions: [
+      { text: "나만의 <b>투자 원칙 문서</b>를 만드세요. '어떤 종목을 어떤 이유로 사는가'를 A4 1장으로 정리. 원칙이 없으면 시장이 흔들 때 무너집니다." },
+      { text: "<b>매매 일지 6개월치</b>를 분석하세요. 어떤 매매에서 돈을 벌었는지, 어떤 패턴에서 손실이 났는지 데이터화하세요." },
+      { text: "포트폴리오를 <b>5종목 이하</b>로 압축하세요. 분산이 아니라 '관리 불가'가 됩니다. 소수 집중이 초반에는 유리합니다." },
+    ],
+    insight1: { icon: "🔍", title: "핵심 병목", text: "지식은 있는데 '내 기준'이 없는 상태. 남의 기준으로는 절대 일관된 수익이 안 납니다." },
+    insight2: { icon: "📈", title: "실력 향상 포인트", text: "수익난 매매와 손실난 매매의 공통점을 데이터로 분석하면 자신의 엣지(Edge)가 보입니다." },
+    insight3: { icon: "🎯", title: "단기 목표", text: "6개월 연속 시장 대비 손실 줄이기. 시장 이기기보다 '덜 잃기'가 먼저입니다." },
+    insight4: { icon: "⏱", title: "예상 성장 기간", text: "원칙 확립 후 1~2년 내 Stage 2(안정적 수익) 진입 가능합니다." },
+    risk: "📌 체크: 단타·스캘핑의 유혹을 조심하세요. 수수료와 세금을 계산하면 대부분 마이너스입니다.",
+  },
+  {
+    min: 14, max: 17,
+    id: "STAGE 2",
+    emoji: "💹",
+    title: "중급 투자자 — 시장 평균은 넘고 있다",
+    sub: "나만의 전략이 어느 정도 잡혔고, 시장 평균 수준의 수익을 내고 있습니다. 이제 '엣지'를 강화할 시점입니다.",
+    color: "#00c878",
+    gradient: "linear-gradient(135deg, #00c878, #00e5ff)",
+    tags: ["자기 전략 보유", "시장 평균 수익", "시스템화 진행 중"],
+    actions: [
+      { text: "<b>섹터 로테이션 전략</b>을 학습하세요. 금리·경기 사이클에 따라 어떤 섹터가 강한지 이해하면 타이밍이 크게 개선됩니다." },
+      { text: "<b>포지션 사이징 규칙</b>을 정교화하세요. 확신도에 따라 1~5%/10%/20% 비중을 다르게 가져가는 켈리 기준을 적용해보세요." },
+      { text: "미국 ETF로 <b>글로벌 분산 포트폴리오</b>를 구성하세요. 국내 주식만 가진 것은 환율·지정학 리스크에 무방비 상태입니다." },
+    ],
+    insight1: { icon: "⚡", title: "핵심 전략", text: "지금 통하는 전략의 '왜 먹히는지'를 깊이 이해하세요. 시장이 바뀌면 전략도 업데이트해야 합니다." },
+    insight2: { icon: "🎯", title: "핵심 병목", text: "수익은 나지만 재현성이 낮은 단계. 운과 실력을 구분하는 것이 핵심 과제입니다." },
+    insight3: { icon: "📈", title: "단기 목표", text: "1년 기준 코스피/S&P500 대비 +5~10%p 초과 수익 달성. 지속 가능성 검증이 핵심." },
+    insight4: { icon: "⏱", title: "예상 성장 기간", text: "전략 정교화 집중 시 2~3년 내 Stage 3(고수) 진입 가능합니다." },
+    risk: "📌 체크: 과거 수익에 자만하지 마세요. 3년 연속 시장 이기는 펀드매니저가 전 세계 5% 미만입니다.",
+  },
+  {
+    min: 18, max: 21,
+    id: "STAGE 3",
+    emoji: "🏆",
+    title: "고수 투자자 — 시장을 이기는 시스템 보유",
+    sub: "검증된 전략과 리스크 관리 시스템을 보유하고 있습니다. 이제 복리와 자산 배분이 당신의 게임입니다.",
+    color: "#00e5ff",
+    gradient: "linear-gradient(135deg, #00e5ff, #0099cc)",
+    tags: ["시장 초과 수익", "리스크 관리 완비", "복리 가속화 단계"],
+    actions: [
+      { text: "<b>자산 배분 리밸런싱 시스템</b>을 고도화하세요. 주식·채권·현금·대안자산의 비율을 쿼터별로 재조정하는 체계가 장기 복리의 핵심입니다." },
+      { text: "<b>세금 최적화 전략</b>을 도입하세요. 손실 매도를 통한 세금 절감(Tax Loss Harvesting), ISA·연금저축 계좌 최대 활용이 실질 수익을 5~15% 높입니다." },
+      { text: "당신의 투자 노하우를 <b>콘텐츠화·강의화</b>하세요. 이 레벨에서는 지식을 파는 것이 또 하나의 수익원이 됩니다." },
+    ],
+    insight1: { icon: "🔑", title: "핵심 전략", text: "복리의 마법은 '수익률 극대화'보다 '손실 최소화'에서 나옵니다. 지키는 것이 버는 것입니다." },
+    insight2: { icon: "🎯", title: "핵심 병목", text: "실력은 있지만 세금·수수료·기회비용 최적화가 안 된 경우 실질 수익이 20~30% 새나갑니다." },
+    insight3: { icon: "📈", title: "단기 목표", text: "3년 CAGR(연평균 복합 수익률) 20% 이상 유지. 장기 검증된 전략가로 포지셔닝." },
+    insight4: { icon: "⏱", title: "현재 위치", text: "국내 개인 투자자 상위 10% 수준입니다. 이제 레거시를 만들 차례입니다." },
+    risk: "📌 체크: 과도한 집중 투자의 유혹을 조심하세요. 이 단계에서의 큰 실수는 회복에 수년이 걸립니다.",
+  },
+  {
+    min: 22, max: 25,
+    id: "STAGE 4",
+    emoji: "👑",
+    title: "투자 마스터 — 자산이 나 대신 일한다",
+    sub: "시장 사이클을 꿰뚫는 안목과 검증된 시스템을 모두 갖춘 최상위 투자자입니다. 이제 영향력을 확장할 단계입니다.",
+    color: "#f7c948",
+    gradient: "linear-gradient(135deg, #f7c948, #ff9500)",
+    tags: ["장기 초과 수익 검증", "자동화 포트폴리오", "자산가 단계"],
+    actions: [
+      { text: "<b>패밀리 오피스 또는 투자조합</b> 구성을 검토하세요. 개인 계좌 한계를 넘어 법인·조합 구조로 절세와 운용 규모를 동시에 극대화하세요." },
+      { text: "퀀트 전략 또는 <b>알고리즘 트레이딩 시스템</b>을 도입하세요. 감정을 완전히 배제한 규칙 기반 시스템이 장기 일관성을 보장합니다." },
+      { text: "<b>투자 커뮤니티·펀드·콘텐츠</b>로 레거시를 만드세요. 이 단계의 지식은 공유할수록 당신의 브랜드 자산이 됩니다." },
+    ],
+    insight1: { icon: "👑", title: "현재 포지션", text: "국내 개인 투자자 상위 1% 수준. 이제 '나 혼자 잘 버는 것'을 넘어 시스템과 영향력을 구축할 단계입니다." },
+    insight2: { icon: "🎯", title: "핵심 병목", text: "이 단계에서의 리스크는 과신과 규모 확대에 따른 유동성 리스크입니다. 겸손함이 최고의 전략입니다." },
+    insight3: { icon: "📈", title: "장기 목표", text: "자산 자동 증식 시스템 완성 + 투자 철학을 전수하는 커뮤니티·펀드 운영." },
+    insight4: { icon: "🌏", title: "다음 레벨", text: "글로벌 자산 배분, 대체 투자(부동산·PE·VC), 차세대 투자자 양성이 최종 목적지입니다." },
+    risk: "📌 체크: 규모가 커질수록 법적·세무 리스크도 커집니다. 반드시 전문 세무사·변호사와 함께 구조화하세요.",
+  },
+];
+
+/* ══════════════════════════════════════
+   STATE & RENDER
+══════════════════════════════════════ */
+let current = 0;
+let answers = new Array(questions.length).fill(null);
+
+function renderQuestion() {
+  const q = questions[current];
+  const pct = Math.round(((current + 1) / questions.length) * 100);
+
+  document.getElementById('progLabel').textContent = `질문 ${current + 1} / ${questions.length}`;
+  document.getElementById('progStep').textContent = `${pct}%`;
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  document.getElementById('prevBtn').style.display = current > 0 ? 'block' : 'none';
+  const nextBtn = document.getElementById('nextBtn');
+  nextBtn.textContent = current === questions.length - 1 ? '결과 보기 📊' : '다음 →';
+  nextBtn.disabled = answers[current] === null;
+
+  const area = document.getElementById('questionArea');
+  area.innerHTML = `
+    <div class="q-number"><div class="q-pulse"></div>Question ${current + 1}</div>
+    <div class="q-text">${q.q}</div>
+    <div class="q-desc">${q.desc}</div>
+    <div class="options">
+      ${q.options.map((o, i) => `
+        <div class="option ${answers[current] === i ? 'selected' : ''}" onclick="selectOption(${i})">
+          <div class="option-radio"></div>
+          <div class="option-content">
+            <div class="option-label">${o.label}</div>
+            <div class="option-detail">${o.detail}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function selectOption(i) {
+  answers[current] = i;
+  document.querySelectorAll('.option').forEach((el, idx) => {
+    el.classList.toggle('selected', idx === i);
+  });
+  document.getElementById('nextBtn').disabled = false;
+}
+
+function nextQ() {
+  if (answers[current] === null) return;
+  if (current < questions.length - 1) {
+    current++;
+    renderQuestion();
+  } else {
+    showResult();
+  }
+}
+
+function prevQ() {
+  if (current > 0) { current--; renderQuestion(); }
+}
+
+/* ══════════════════════════════════════
+   SHOW RESULT
+══════════════════════════════════════ */
+function showResult() {
+  const totalScore = answers.reduce((sum, ansIdx, qIdx) =>
+    sum + (ansIdx !== null ? questions[qIdx].options[ansIdx].score : 1), 0);
+
+  const stage = stages.find(s => totalScore >= s.min && totalScore <= s.max) || stages[stages.length - 1];
+  const pct = Math.round(((totalScore - 5) / 20) * 100);
+  const stageIndex = stages.indexOf(stage);
+
+  document.getElementById('quizCard').style.display = 'none';
+  const rc = document.getElementById('resultCard');
+  rc.style.display = 'block';
+
+  const ladderHTML = stages.map((s, i) => `
+    <div class="ladder-step ${i === stageIndex ? 'active' : ''}">
+      <span class="ladder-icon">${s.emoji}</span>${s.id}
+    </div>
+  `).join('');
+
+  rc.innerHTML = `
+    <div class="result-screen">
+      <div class="result-stage-badge" style="border-color:${stage.color}; color:${stage.color}; background:${stage.color}15;">
+        ◈ ${stage.id}
+      </div>
+      <span class="result-emoji">${stage.emoji}</span>
+      <div class="result-title" style="background:${stage.gradient}; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">
+        ${stage.title}
+      </div>
+      <div class="result-sub">${stage.sub}</div>
+
+      <div class="share-tag">
+        ${stage.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+      </div>
+
+      <!-- STAGE LADDER -->
+      <div class="stage-ladder">${ladderHTML}</div>
+
+      <!-- PNL SCORE BAR -->
+      <div class="pnl-section">
+        <div class="pnl-top">
+          <span class="pnl-label">📊 투자 레벨 점수</span>
+          <span class="pnl-score" style="color:${stage.color}">${totalScore}점 <span style="font-size:13px; color:var(--muted)">/ 25점</span></span>
+        </div>
+        <div class="score-track">
+          <div class="score-fill" id="scoreFill" style="width:0%; background:${stage.gradient};"></div>
+        </div>
+        <div class="pnl-bottom">
+          <span>🌱 입문자</span>
+          <span style="color:${stage.color}; font-weight:800;">상위 ${Math.max(5, 100 - pct)}%</span>
+          <span>👑 마스터</span>
+        </div>
+      </div>
+
+      <!-- INSIGHTS -->
+      <div class="insights">
+        <div class="insight-box">
+          <div class="insight-icon">${stage.insight1.icon}</div>
+          <div class="insight-title">${stage.insight1.title}</div>
+          <div class="insight-text">${stage.insight1.text}</div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-icon">${stage.insight2.icon}</div>
+          <div class="insight-title">${stage.insight2.title}</div>
+          <div class="insight-text">${stage.insight2.text}</div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-icon">${stage.insight3.icon}</div>
+          <div class="insight-title">${stage.insight3.title}</div>
+          <div class="insight-text">${stage.insight3.text}</div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-icon">${stage.insight4.icon}</div>
+          <div class="insight-title">${stage.insight4.title}</div>
+          <div class="insight-text">${stage.insight4.text}</div>
+        </div>
+      </div>
+
+      <!-- RISK WARNING -->
+      <div class="risk-box">
+        <div class="risk-icon">⚠️</div>
+        <div class="risk-text">${stage.risk}<br/><br/>본 진단은 투자 참고용이며 투자 권유가 아닙니다. 모든 투자의 책임은 투자자 본인에게 있습니다.</div>
+      </div>
+
+      <!-- ACTION PLAN -->
+      <div class="action-list">
+        <div class="action-title">📌 지금 당장 실행할 전략 3가지</div>
+        ${stage.actions.map((a, i) => `
+          <div class="action-item">
+            <div class="action-num">${i + 1}</div>
+            <div class="action-text">${a.text}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <button class="restart-btn" onclick="restart()">↺ 다시 진단하기</button>
+    </div>
+  `;
+
+  setTimeout(() => {
+    const fill = document.getElementById('scoreFill');
+    if (fill) fill.style.width = pct + '%';
+  }, 200);
+}
+
+function restart() {
+  current = 0;
+  answers = new Array(questions.length).fill(null);
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('quizCard').style.display = 'block';
+  renderQuestion();
+}
+
+renderQuestion();
+</script>
+</body>
+</html>
